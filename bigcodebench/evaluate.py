@@ -1,13 +1,15 @@
+import ast
 import os
 import json
 import subprocess
 import tempfile
 from pathlib import Path
-import ast
+from utils import load_jsonl_data
 
-DOCKER_IMAGE = "my-python-runtime:1.0"
+DOCKER_IMAGE = "bigcodebench-python-env:1.0"
 
 script_suffix = """if __name__ == '__main__':
+    import inspect
     suite = unittest.TestLoader().loadTestsFromModule(__import__(__name__))
     runner = unittest.TextTestRunner(verbosity=0)
     result = runner.run(suite)
@@ -19,14 +21,26 @@ script_suffix = """if __name__ == '__main__':
     
     if passed == total:
         print("ALL TESTS PASSED")
+    else:
+        failure_datails = []
+
+        for test, tb in result.failures + result.errors:
+
+            method = getattr(test, test._testMethodName)
+
+            try:
+                method_source = inspect.getsource(method)
+            except:
+                method_source = None
+
+            failure_datails.append({
+                "failed_test_method": method_source,
+                "traceback": tb,
+            })
+
+        print("unit tests failure details:")
+        print(failure_datails)
     
-    statistics = {
-        "total": total,
-        "fails": fails,
-        "errors": errors,
-        "passed": passed
-    }
-    print(statistics)
 """
 
 
@@ -37,7 +51,10 @@ def run_single_sample(code_str, test_str):
     with tempfile.TemporaryDirectory(dir="/data0/xjh/tmp") as tmpdir:
         tmpdir = Path(tmpdir)
 
-        (tmpdir / "solution.py").write_text(construct_file_content(code_str, test_str))
+        file_content = construct_file_content(code_str, test_str)
+        with open("/data0/xjh/bigcodebench-experiment/playground/a.py", "w") as f:
+            f.write(file_content)
+        (tmpdir / "solution.py").write_text(file_content)
         # (tmpdir / "install_dependencies.py").write_text(install_dependencies_code)
 
         create_cmd = [
@@ -64,89 +81,77 @@ def run_single_sample(code_str, test_str):
             # -a (attach) 会让 subprocess 等待容器运行结束并获取输出
             result = subprocess.run(
                 ["docker", "start", "-a", "temp_worker"],
-                capture_output=True,
                 text=True,
-                timeout=10
+                timeout=120,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
             )
 
         except Exception as e:
             print(e)
-            return False, None
+            return False, "execution timeout"
 
         finally:
             # 4. 清理：无论成功失败，都删除容器
             subprocess.run(["docker", "rm", "-f", "temp_worker"], capture_output=True)
 
     if result.returncode != 0:
-        print("执行失败:", result.stderr)
-        print("stdout:", result.stdout)
-        return False, None
+        print("执行失败:", result.stdout)
+
+        return False, result.stdout
     
-    inner_output = result.stdout
-    start_idx = inner_output.rfind('{')
-    end_idx = inner_output.rfind('}')
-    dict_str = inner_output[start_idx : end_idx + 1]
-    data_dict = ast.literal_eval(dict_str)
 
     if "ALL TESTS PASSED" in result.stdout:
         print("测试通过")
-        return True, data_dict
+        return True, None
     
     print("测试失败:", result.stdout)
-    return False, data_dict
+    if "unit tests failure details:" in result.stdout:
+        try:
+            error_msg = result.stdout.split("unit tests failure details:")[-1].strip()
+            data_obj = ast.literal_eval(error_msg.strip())
+            formatted_json = json.dumps(data_obj, indent=2, ensure_ascii=False)
+            feedback_msg = "Some unit tests fail:\n" + formatted_json
+        except Exception:
+            feedback_msg = result.stdout
+    else:
+        feedback_msg = result.stdout
+    return False, feedback_msg
 
 
-def evaluate(json_path, metadata_path):
-    with open(json_path, "r") as f:
-        data = json.load(f)
+def evaluate(code_dir, data_path, feedback_output_path):
+    os.makedirs(feedback_output_path, exist_ok=True)
 
-    metadata = []
+    data = load_jsonl_data(data_path)
 
     total = 0
     right = 0
 
-    testcase_total = 0
-    testcase_passed = 0
-
-    for sample in data:
+    for sample in data[1104:]:
         total += 1
 
-        code = sample["predict"][0]
+        task_id = sample["task_id"]
+        task_id = task_id.split("/")[-1]
+        with open(os.path.join(code_dir, f"{task_id}.py"), "r") as f:
+            code = f.read()
         test_code = sample["test"]
 
-        success, data_dict = run_single_sample(code, test_code)
+        success, feedback = run_single_sample(code, test_code)
         if success:
             right += 1
-
-        if data_dict:
-            testcase_total += data_dict["total"]
-            testcase_passed += data_dict["passed"]
-
-        if data_dict:
-            metadata.append({
-                "task_id": sample["task_id"],
-                "pass_rate": f"{data_dict["passed"]}/{data_dict["total"]}"
-            })
         else:
-            metadata.append({
-                "task_id": sample["task_id"],
-                "pass_rate": "Error"
-            })
+            with open(os.path.join(feedback_output_path, f"{task_id}.txt"), "w") as f:
+                f.write(feedback)
 
     print("total:", total)
     print("right:", right)
 
-    print("testcase total:", testcase_total)
-    print("testcase passed:", testcase_passed)
-
-    with open(metadata_path, "w") as f:
-        json.dump(metadata, f, indent=2)
-
 
 def main():
-    output_file_path = "/data0/xjh/ClassEval/custom_generation/holistic_with_test.json"
-    metadata_path = "/data0/xjh/ClassEval/custom_generation/incremental_metadata.json"
-    evaluate(output_file_path, metadata_path)
+    code_dir = "/data0/xjh/bigcodebench-experiment/qwen1.5b_generations"
+    data_path = "/data0/xjh/bigcodebench-experiment/data/bigcodebench.jsonl"
+    feedback_output_path = "/data0/xjh/bigcodebench-experiment/qwen1.5b_feedbacks"
+    evaluate(code_dir, data_path, feedback_output_path)
 
 if __name__ == "__main__":
     main()

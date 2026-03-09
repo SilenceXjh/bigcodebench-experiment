@@ -5,9 +5,7 @@ with open("bigcodebench.json", "r") as f:
      print("dataset size:", len(data))
      for sample in data[:3]:
           print(sample["task_id"])
-          print("doc struct")
-          print(sample["doc_struct"])
-          print("instruct prompt")
-          print(sample["instruct_prompt"])
+          print("complete_prompt")
+          print(sample["complete_prompt"])
           print("test")
           print(sample["test"])

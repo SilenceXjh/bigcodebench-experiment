@@ -1,5 +1,7 @@
-qwen7b_generations
+qwen*
 playground
 data/*.json
 data/*.jsonl
 __pycache__/
+nohup.out
+*.log
