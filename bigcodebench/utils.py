@@ -109,3 +109,17 @@ def extract_python_code(generated_text: str) -> str:
     return code
 
 
+def ds_api_generate(prompt: str, client: OpenAI, max_new_tokens=1024):
+    response = client.chat.completions.create(
+        model="deepseek-chat",
+        messages=[
+            {"role": "system", "content": "You are an expert Python programmer."},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.2,
+        max_tokens=max_new_tokens,
+        n=1,
+        stream=False
+    )
+    generated_text = response.choices[0].message.content
+    return generated_text

@@ -52,8 +52,8 @@ def run_single_sample(code_str, test_str):
         tmpdir = Path(tmpdir)
 
         file_content = construct_file_content(code_str, test_str)
-        with open("/data0/xjh/bigcodebench-experiment/playground/a.py", "w") as f:
-            f.write(file_content)
+        # with open("/data0/xjh/bigcodebench-experiment/playground/a.py", "w") as f:
+        #     f.write(file_content)
         (tmpdir / "solution.py").write_text(file_content)
         # (tmpdir / "install_dependencies.py").write_text(install_dependencies_code)
 
@@ -96,16 +96,16 @@ def run_single_sample(code_str, test_str):
             subprocess.run(["docker", "rm", "-f", "temp_worker"], capture_output=True)
 
     if result.returncode != 0:
-        print("执行失败:", result.stdout)
+        # print("执行失败:", result.stdout)
 
         return False, result.stdout
     
 
     if "ALL TESTS PASSED" in result.stdout:
-        print("测试通过")
+        # print("测试通过")
         return True, None
     
-    print("测试失败:", result.stdout)
+    # print("测试失败:", result.stdout)
     if "unit tests failure details:" in result.stdout:
         try:
             error_msg = result.stdout.split("unit tests failure details:")[-1].strip()
@@ -127,7 +127,7 @@ def evaluate(code_dir, data_path, feedback_output_path):
     total = 0
     right = 0
 
-    for sample in data[1104:]:
+    for sample in data:
         total += 1
 
         task_id = sample["task_id"]
@@ -148,9 +148,9 @@ def evaluate(code_dir, data_path, feedback_output_path):
 
 
 def main():
-    code_dir = "/data0/xjh/bigcodebench-experiment/qwen1.5b_generations"
+    code_dir = "/data0/xjh/bigcodebench-experiment/qwen7b_test_first_generations"
     data_path = "/data0/xjh/bigcodebench-experiment/data/bigcodebench.jsonl"
-    feedback_output_path = "/data0/xjh/bigcodebench-experiment/qwen1.5b_feedbacks"
+    feedback_output_path = "/data0/xjh/bigcodebench-experiment/qwen7b_test_first_feedbacks"
     evaluate(code_dir, data_path, feedback_output_path)
 
 if __name__ == "__main__":
