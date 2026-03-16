@@ -148,9 +148,9 @@ def evaluate(code_dir, data_path, feedback_output_path):
 
 
 def main():
-    code_dir = "/data0/xjh/bigcodebench-experiment/qwen7b_test_first_generations"
+    code_dir = "/data0/xjh/bigcodebench-experiment/qwen7b_cot_generations"
     data_path = "/data0/xjh/bigcodebench-experiment/data/bigcodebench.jsonl"
-    feedback_output_path = "/data0/xjh/bigcodebench-experiment/qwen7b_test_first_feedbacks"
+    feedback_output_path = "/data0/xjh/bigcodebench-experiment/qwen7b_cot_feedbacks"
     evaluate(code_dir, data_path, feedback_output_path)
 
 if __name__ == "__main__":

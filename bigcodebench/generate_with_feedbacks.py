@@ -4,9 +4,9 @@ from evaluate import run_single_sample
 
 
 data_path = "/data0/xjh/bigcodebench-experiment/data/bigcodebench.jsonl"
-model_path = "/data1/model/qwen/Qwen/Qwen2.5-Coder-1.5B-Instruct/"
-code_path = "/data0/xjh/bigcodebench-experiment/qwen1.5b_test_first_generations"
-output_path = "/data0/xjh/bigcodebench-experiment/qwen1.5b_repairs"
+model_path = "/data1/model/qwen/Qwen/Qwen2.5-Coder-7B-Instruct/"
+code_path = "/data0/xjh/bigcodebench-experiment/qwen7b_test_first_generations"
+output_path = "/data0/xjh/bigcodebench-experiment/qwen7b_repairs"
 
 os.makedirs(output_path, exist_ok=True)
 
